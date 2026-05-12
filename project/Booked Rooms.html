@@ -349,9 +349,11 @@ fetch('uploads/3D Floorplans.svg').then(r => r.text()).then(text => {
     }
   });
 
-  // Uppercase the "terrace room" label on the map.
+  // Uppercase map labels that ship in mixed case.
   svgEl.querySelectorAll('tspan').forEach(ts => {
-    if (ts.textContent.trim() === 'terrace room') ts.textContent = 'TERRACE ROOM';
+    const t = ts.textContent.trim();
+    if (t === 'terrace room') ts.textContent = 'TERRACE ROOM';
+    else if (t === 'Arcade LEVEL') ts.textContent = 'ARCADE LEVEL';
   });
 
   applyBooked();
