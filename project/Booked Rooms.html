@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fairmont — Booked Rooms</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --paper: #f6f0e2;
+    --paper-2: #efe6d2;
+    --ink: #1a1612;
+    --ink-70: #4a4138;
+    --ink-50: #80735a;
+    --ink-30: #b8ad94;
+    --ink-20: #cfc6ad;
+    --ink-10: #e6dec7;
+    --accent: #9c7a3c;
+    --booked: #e09663;
+    --booked-glow: #e09663;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: var(--sans); color: var(--ink); background: var(--paper); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  .eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-50); }
+
+  .app { min-height: 100vh; display: grid; grid-template-columns: 380px 1fr; }
+
+  .side { border-right: 1px solid var(--ink-10); padding: 28px 24px; overflow-y: auto; max-height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .brand__text { display: flex; flex-direction: column; min-width: 0; }
+  .brand__mark { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--ink-30); color: var(--accent); border-radius: 2px; }
+  .brand__name { font-family: var(--serif); font-size: 22px; line-height: 1; }
+  .brand__sub { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-50); margin-top: 4px; }
+  .side h1 { font-family: var(--serif); font-size: 26px; font-weight: 500; margin: 4px 0 4px; letter-spacing: -0.01em; }
+  .side > p { color: var(--ink-70); margin: 0 0 16px; }
+  .summary { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-70); border: 1px solid var(--ink-20); padding: 8px 12px; border-radius: 2px; margin-bottom: 16px; display: inline-flex; align-items: baseline; white-space: nowrap; }
+  .summary strong { font-family: var(--serif); font-size: 16px; color: var(--booked); margin-right: 6px; letter-spacing: 0; }
+  .actions { display: flex; gap: 8px; margin-bottom: 16px; }
+  .btn { font-family: var(--sans); font-size: 12px; font-weight: 500; padding: 6px 14px; border: 1px solid var(--ink-30); background: var(--paper); color: var(--ink-70); cursor: pointer; border-radius: 2px; white-space: nowrap; }
+  .btn:hover { border-color: var(--ink-70); color: var(--ink); }
+  .checkrow { display: flex; align-items: center; gap: 12px; padding: 7px 6px; cursor: pointer; border-radius: 2px; }
+  .checkrow:hover { background: var(--paper-2); }
+  .checkrow input { display: none; }
+  .checkrow__box { width: 16px; height: 16px; border: 1.5px solid var(--ink-30); border-radius: 2px; display: grid; place-items: center; flex-shrink: 0; background: var(--paper); }
+  .checkrow__box::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px, -1px); opacity: 0; }
+  .checkrow.is-checked .checkrow__box { background: var(--booked); border-color: var(--booked); }
+  .checkrow.is-checked .checkrow__box::after { opacity: 1; }
+  .checkrow__name { font-family: var(--serif); font-size: 15px; flex: 1; }
+  .checkrow.is-checked .checkrow__name { color: var(--booked); }
+
+  .stage { padding: 28px 32px; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .plan-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 760px;
+    aspect-ratio: 648 / 864;
+  }
+  .plan-host { width: 100%; height: 100%; display: block; }
+  .plan-host svg { width: 100%; height: 100%; display: block; }
+  .plan-host path[data-room] { cursor: pointer; transition: fill .2s, filter .2s; }
+  .plan-host path[data-room]:hover { fill: #e09663 !important; }
+  .plan-host path[data-room].is-booked {
+    fill: #e09663 !important;
+    filter: drop-shadow(0 0 3px rgba(224, 150, 99, 0.5));
+  }
+
+  #coord-picker {
+    position: fixed; bottom: 16px; right: 16px; z-index: 100;
+    background: var(--ink); color: var(--paper);
+    font-family: var(--mono); font-size: 12px;
+    padding: 10px 14px; border-radius: 4px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #coord-picker label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  #coord-output {
+    font-size: 14px; letter-spacing: 0.05em;
+    color: #f0c060; min-height: 1.4em;
+  }
+  #coord-log {
+    max-height: 140px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  #coord-log span { color: #aaa; }
+  #coord-log span:first-child { color: #f0c060; }
+
+  /* Print layout — used when "Download PDF" triggers the print dialog. */
+  #print-summary { display: none; }
+  @media print {
+    @page { size: letter; margin: 0.5in; }
+    body { background: #fff; }
+    .app { display: block; }
+    .side, #coord-picker, .actions, .summary { display: none !important; }
+    .stage { padding: 0; }
+    .plan-wrap { max-width: 100%; page-break-inside: avoid; }
+    .plan-host path[data-room].is-booked { filter: none; }
+    #print-summary {
+      display: block;
+      font-family: var(--serif);
+      margin-bottom: 16px;
+      page-break-after: avoid;
+    }
+    #print-summary h1 { font-size: 24px; font-weight: 500; margin: 0 0 6px; }
+    #print-summary .eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-50); }
+    #print-summary ul { font-family: var(--sans); font-size: 12px; columns: 2; padding: 0; list-style: none; margin: 12px 0 0; }
+    #print-summary li { padding: 3px 0; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand__mark">
+        <svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="6" width="20" height="14" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1"/><line x1="12" y1="6" x2="12" y2="20" stroke="currentColor" stroke-width="1"/></svg>
+      </div>
+      <div class="brand__text">
+        <div class="brand__name">Fairmont Rooms</div>
+        <div class="brand__sub">Your Booked Spaces</div>
+      </div>
+    </div>
+    <span class="eyebrow">Check what you booked</span>
+    <h1>Booked rooms</h1>
+    <p>The rooms you tick will glow on the property plan to the right.</p>
+    <div class="summary"><strong id="count">0</strong> rooms booked</div>
+    <div class="actions">
+      <button class="btn" id="all">Select all</button>
+      <button class="btn" id="clear">Clear</button>
+      <button class="btn" id="pdf">Download PDF</button>
+    </div>
+    <div id="checklist"></div>
+  </aside>
+
+  <section class="stage" id="plan-stage">
+    <div id="print-summary">
+      <div class="eyebrow">Fairmont Rooms — Your Booked Spaces</div>
+      <h1>Booked rooms</h1>
+      <ul id="print-list"></ul>
+    </div>
+    <div class="plan-wrap">
+      <div class="plan-host" id="planHost" aria-label="Fairmont property — 3D floor plans"></div>
+    </div>
+    <div id="coord-picker">
+      <label>
+        <input type="checkbox" id="picker-toggle">
+        Coordinate picker
+      </label>
+      <div id="coord-output"></div>
+      <div id="coord-log"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+// Hint point (in 648x864 viewBox coords) inside each room — used to find the
+// matching cream-filled path in the floor-plan SVG. The path itself is what
+// gets recolored, so highlights always fill exactly inside the black lines.
+const ROOMS = [
+  { id: 'crown-room',     name: 'The Crown Room',          x: 200, y: 90  },
+  { id: 'state-room',     name: 'State Room',              x: 446, y: 79  },
+  { id: 'international',  name: 'International Room',      x: 450, y: 90  },
+  { id: 'far-east',       name: 'Far East Room',           x: 476, y: 111 },
+  { id: 'california',     name: 'California Room',         x: 390, y: 140 },
+  { id: 'hunt',           name: 'Hunt Room',               x: 468, y: 145 },
+  { id: 'roof-garden',    name: 'Roof Garden',             x: 300, y: 180, extra: [{x: 319, y: 182}] },
+  { id: 'fountain',       name: 'Fountain Room',           x: 233, y: 190 },
+  { id: 'crystal',        name: 'Crystal Room',            x: 192, y: 188 },
+  { id: 'pavilion',       name: 'Pavilion Room',
+    overlay: [[443, 185], [438, 169], [388, 170], [396, 184]] },
+  { id: 'venetian',       name: 'Venetian Room',           x: 312, y: 248 },
+  { id: 'french',         name: 'French Room',             x: 390, y: 248, extra: [{x: 411, y: 252}] },
+  { id: 'cirque',         name: 'Cirque Room',             x: 446, y: 236, extra: [{x: 427, y: 242}, {x: 465, y: 231}, {x: 425, y: 231}] },
+  { id: 'gold',           name: 'Gold Room',               x: 159, y: 290, extra: [{x: 205, y: 255}, {x: 145, y: 257}, {x: 110, y: 322}, {x: 178, y: 322}] },
+  { id: 'diplomat-club',  name: 'Diplomat Club',
+    overlay: [
+      [393, 451], [417, 449], [421, 454], [436, 454], [429, 434],
+      [415, 431], [413, 425], [404, 425], [404, 424], [390, 422],
+      [391, 428], [384, 429], [382, 422], [374, 422], [379, 449],
+    ] },
+  { id: 'intersect',      name: 'Intersect',               x: 368, y: 486 },
+  // Tonga uses an overlay polygon because its visual area is part of a giant
+  // compound cream path that also covers Diplomat Club, the corridor, etc.
+  // Trace the room's corners with the coord picker and replace the placeholder.
+  { id: 'tonga',          name: 'Tonga Restaurant',
+    overlay: [[361, 533], [362, 573], [222, 572], [236, 533]] },
+  { id: 'laurel-court',   name: 'Laurel Court',
+    overlay: [
+      [ // left region
+        [231, 300], [289, 304], [292, 296], [281, 288], [277, 276],
+        [273, 270], [251, 268], [235, 279], [232, 301],
+      ],
+      [ // right region
+        [326, 298], [318, 294], [320, 292], [325, 291], [331, 290],
+        [328, 288], [327, 285], [329, 275], [321, 269], [319, 265],
+        [330, 264], [337, 261], [359, 263], [364, 269], [368, 273],
+        [375, 277], [373, 284], [366, 288], [354, 290], [353, 297],
+        [348, 304], [328, 306],
+      ],
+    ] },
+  { id: 'empire',         name: 'Empire Room',
+    overlay: [[89, 358], [105, 327], [132, 327], [118, 357]] },
+  { id: 'green',          name: 'Green Room',
+    overlay: [[164, 372], [167, 370], [174, 342], [145, 342], [133, 373]] },
+  { id: 'garden',         name: 'Garden Room',
+    overlay: [[171, 368], [244, 368], [248, 349], [178, 348]] },
+  { id: 'terrace-room',   name: 'Terrace Room',            x: 287, y: 605 },
+  { id: 'vanderbilt',     name: 'Vanderbilt Room',         x: 368, y: 599 },
+  { id: 'grand-ballroom', name: 'Grand Ballroom',          x: 314, y: 762 },
+];
+
+const booked = new Set();
+const roomPaths = {}; // id -> <path>
+const checklistEl = document.getElementById('checklist');
+const countEl = document.getElementById('count');
+const planHost = document.getElementById('planHost');
+
+// ---- Load SVG inline ----
+fetch('uploads/3D Floorplans.svg').then(r => r.text()).then(text => {
+  planHost.innerHTML = text;
+  const svgEl = planHost.querySelector('svg');
+  svgEl.removeAttribute('width');
+  svgEl.removeAttribute('height');
+  svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // Match each room to its cream-filled path using elementsFromPoint.
+  // This converts SVG viewBox coords → page pixels so hit-testing is exact.
+  // If the exact hint misses, a small spiral search finds the nearest cream path.
+  const svgRect = svgEl.getBoundingClientRect();
+  const scaleX = svgRect.width / 648;
+  const scaleY = svgRect.height / 864;
+
+  const SEARCH = [
+    [0,0],[8,0],[-8,0],[0,8],[0,-8],
+    [16,0],[-16,0],[0,16],[0,-16],
+    [12,12],[-12,12],[12,-12],[-12,-12],
+    [24,0],[-24,0],[0,24],[0,-24],
+    [20,12],[-20,12],[20,-12],[-20,-12],
+    [36,0],[-36,0],[0,36],[0,-36],
+    [28,20],[-28,20],[28,-20],[-28,-20],
+    [50,0],[-50,0],[0,50],[0,-50],
+    [40,30],[-40,30],[40,-30],[-40,-30],
+  ];
+
+  function findCreamPath(hintX, hintY) {
+    for (const [dx, dy] of SEARCH) {
+      const pageX = svgRect.left + (hintX + dx) * scaleX;
+      const pageY = svgRect.top  + (hintY + dy) * scaleY;
+      const el = document.elementsFromPoint(pageX, pageY).find(e =>
+        e.tagName === 'path' &&
+        (e.getAttribute('fill') || '').toLowerCase() === '#f1e7d3'
+      );
+      if (el) return el;
+    }
+    return null;
+  }
+
+  // Find the last cream-fill path so overlays can be inserted just after it,
+  // i.e. above the cream layer but below the black dividers.
+  const creamPaths = svgEl.querySelectorAll('path[fill="#f1e7d3"]');
+  const lastCream = creamPaths[creamPaths.length - 1];
+
+  function pointInPolygon(px, py, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if (((yi > py) !== (yj > py)) &&
+          (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function makeOverlay(r) {
+    // overlay can be a single polygon [[x,y],...] or multiple [[[x,y],...],...]
+    const polys = Array.isArray(r.overlay[0][0]) ? r.overlay : [r.overlay];
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = polys
+      .map(poly => 'M' + poly.map(pt => `${pt[0]},${pt[1]}`).join(' L') + ' Z')
+      .join(' ');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', '#f1e7d3');
+    path.setAttribute('data-room', r.id);
+    path.addEventListener('click', () => toggle(r.id));
+    lastCream.parentNode.insertBefore(path, lastCream.nextSibling);
+    roomPaths[r.id] = path;
+
+    // Re-stack any cream paths or text labels fully contained within this
+    // room's polygons so they paint on top (preserves decorative features
+    // like the oval inside Tonga and the "DIPLOMAT CLUB" label).
+    const anchor = path.nextSibling;
+    const candidates = [...creamPaths, ...svgEl.querySelectorAll('text')];
+    candidates.forEach(el => {
+      const r2 = el.getBoundingClientRect();
+      if (!r2.width || !r2.height) return;
+      const corners = [
+        [r2.left, r2.top], [r2.right, r2.top],
+        [r2.right, r2.bottom], [r2.left, r2.bottom],
+      ].map(([x, y]) => [
+        (x - svgRect.left) / scaleX,
+        (y - svgRect.top)  / scaleY,
+      ]);
+      const insideSome = polys.some(poly =>
+        corners.every(([px, py]) => pointInPolygon(px, py, poly))
+      );
+      if (insideSome) path.parentNode.insertBefore(el, anchor);
+    });
+  }
+
+  ROOMS.forEach((r) => {
+    if (r.overlay) { makeOverlay(r); return; }
+    const best = findCreamPath(r.x, r.y);
+    if (best) {
+      best.setAttribute('data-room', r.id);
+      best.addEventListener('click', () => toggle(r.id));
+      roomPaths[r.id] = best;
+    } else {
+      console.warn('No path matched for room:', r.id, r.name);
+    }
+    (r.extra || []).forEach(pt => {
+      // Extra points are user-verified — use exact coordinate only, no spiral
+      const pageX = svgRect.left + pt.x * scaleX;
+      const pageY = svgRect.top  + pt.y * scaleY;
+      const p = document.elementsFromPoint(pageX, pageY).find(e =>
+        e.tagName === 'path' &&
+        (e.getAttribute('fill') || '').toLowerCase() === '#f1e7d3'
+      );
+      if (p && p !== best) {
+        p.setAttribute('data-room', r.id);
+        p.addEventListener('click', () => toggle(r.id));
+      }
+    });
+  });
+
+  // Merge Laurel Court labels — hide "RESTAURANT" and "BAR" text from the map
+  svgEl.querySelectorAll('text').forEach(t => {
+    const content = t.textContent.replace(/\s+/g, ' ').trim();
+    if (content === 'RESTAURANT') {
+      t.style.display = 'none';
+    } else if (content.includes('LAUREL') && content.includes('COURT') && content.includes('BAR')) {
+      t.querySelectorAll('tspan').forEach(ts => {
+        if (ts.textContent.trim() === 'BAR') ts.style.display = 'none';
+      });
+    }
+  });
+
+  // Uppercase the "terrace room" label on the map.
+  svgEl.querySelectorAll('tspan').forEach(ts => {
+    if (ts.textContent.trim() === 'terrace room') ts.textContent = 'TERRACE ROOM';
+  });
+
+  applyBooked();
+});
+
+function applyBooked() {
+  const svgEl = planHost.querySelector('svg');
+  if (svgEl) {
+    svgEl.querySelectorAll('path[data-room]').forEach(p => {
+      p.classList.toggle('is-booked', booked.has(p.dataset.room));
+    });
+  }
+  countEl.textContent = booked.size;
+  debugLogRoom('tonga');
+}
+
+// DEBUG: list every path tagged with the given room id and its bbox in
+// viewBox coords, so we can spot bleed-over from compound paths.
+function debugLogRoom(roomId) {
+  if (!booked.has(roomId)) return;
+  const svgEl = planHost.querySelector('svg');
+  if (!svgEl) return;
+  const paths = svgEl.querySelectorAll(`path[data-room="${roomId}"]`);
+  console.group(`[debug] ${roomId} — ${paths.length} path(s)`);
+  paths.forEach((p, i) => {
+    const b = p.getBBox();
+    console.log(
+      `#${i}  x:${Math.round(b.x)}-${Math.round(b.x + b.width)}  ` +
+      `y:${Math.round(b.y)}-${Math.round(b.y + b.height)}  ` +
+      `(w:${Math.round(b.width)} h:${Math.round(b.height)})`,
+      p
+    );
+  });
+  console.groupEnd();
+}
+
+function renderList() {
+  checklistEl.innerHTML = ROOMS.map((r) => `
+    <label class="checkrow ${booked.has(r.id) ? 'is-checked' : ''}" data-id="${r.id}">
+      <input type="checkbox" ${booked.has(r.id) ? 'checked' : ''}>
+      <span class="checkrow__box"></span>
+      <span class="checkrow__name">${r.name}</span>
+    </label>
+  `).join('');
+  checklistEl.querySelectorAll('.checkrow').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggle(el.dataset.id);
+    });
+  });
+  countEl.textContent = booked.size;
+}
+
+function toggle(id) {
+  if (booked.has(id)) booked.delete(id);
+  else booked.add(id);
+  renderList();
+  applyBooked();
+}
+
+document.getElementById('all').addEventListener('click', () => {
+  ROOMS.forEach((r) => booked.add(r.id));
+  renderList(); applyBooked();
+});
+document.getElementById('clear').addEventListener('click', () => {
+  booked.clear();
+  renderList(); applyBooked();
+});
+document.getElementById('pdf').addEventListener('click', () => {
+  const list = document.getElementById('print-list');
+  const items = ROOMS.filter(r => booked.has(r.id));
+  list.innerHTML = items.length
+    ? items.map(r => `<li>${r.name}</li>`).join('')
+    : '<li><em>No rooms selected</em></li>';
+  window.print();
+});
+
+renderList();
+
+// ---- Coordinate picker ----
+let pickerOn = false;
+
+document.getElementById('picker-toggle').addEventListener('change', (e) => {
+  pickerOn = e.target.checked;
+  document.getElementById('coord-output').textContent = pickerOn ? 'click anywhere on the plan…' : '';
+});
+
+document.getElementById('plan-stage').addEventListener('click', (e) => {
+  if (!pickerOn) return;
+  const svgEl = planHost.querySelector('svg');
+  if (!svgEl) return;
+  const rect = svgEl.getBoundingClientRect();
+  const x = Math.round((e.clientX - rect.left) / rect.width  * 648);
+  const y = Math.round((e.clientY - rect.top)  / rect.height * 864);
+  const line = `x: ${x},  y: ${y}`;
+  document.getElementById('coord-output').textContent = line;
+  const span = document.createElement('span');
+  span.textContent = line;
+  document.getElementById('coord-log').prepend(span);
+});
+</script>
+</body>
+</html>
