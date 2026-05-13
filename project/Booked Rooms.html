@@ -53,6 +53,18 @@
   .checkrow.is-checked .checkrow__box::after { opacity: 1; }
   .checkrow__name { font-family: var(--serif); font-size: 15px; flex: 1; }
   .checkrow.is-checked .checkrow__name { color: var(--booked); }
+  .checkrow__category {
+    font-family: var(--sans); font-size: 11px; color: var(--ink-70);
+    border: 1px solid var(--ink-30); background: var(--paper);
+    padding: 3px 6px; border-radius: 2px; cursor: pointer;
+    max-width: 130px;
+  }
+
+  .key { margin: 0 0 18px; padding: 12px; border: 1px solid var(--ink-20); border-radius: 2px; }
+  .key__title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-50); margin-bottom: 8px; }
+  .key__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  .key__item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-70); }
+  .key__sw { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
 
   .stage { padding: 28px 32px; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .plan-wrap {
@@ -65,10 +77,16 @@
   .plan-host svg { width: 100%; height: 100%; display: block; }
   .plan-host path[data-room] { cursor: pointer; transition: fill .2s, filter .2s; }
   .plan-host path[data-room]:hover { fill: #e09663 !important; }
-  .plan-host path[data-room].is-booked {
-    fill: #e09663 !important;
-    filter: drop-shadow(0 0 3px rgba(224, 150, 99, 0.5));
-  }
+  .plan-host path[data-room].is-booked { filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.18)); }
+  .plan-host path[data-room].cat-general-session { fill: #e09663 !important; }
+  .plan-host path[data-room].cat-office          { fill: #6b8caf !important; }
+  .plan-host path[data-room].cat-breakout        { fill: #5fa791 !important; }
+  .plan-host path[data-room].cat-storage         { fill: #9c9282 !important; }
+  .plan-host path[data-room].cat-meal-room       { fill: #d4a73a !important; }
+  .plan-host path[data-room].cat-dinner          { fill: #a8513d !important; }
+  .plan-host path[data-room].cat-reception       { fill: #c97a8d !important; }
+  .plan-host path[data-room].cat-registration    { fill: #7d9b5e !important; }
+  .plan-host path[data-room].cat-other           { fill: #8a6da8 !important; }
 
   #coord-picker {
     position: fixed; bottom: 16px; right: 16px; z-index: 100;
@@ -90,15 +108,24 @@
   #coord-log span:first-child { color: #f0c060; }
 
   /* Print layout — used when "Download PDF" triggers the print dialog. */
-  #print-summary { display: none !important; }
+  #print-summary { display: none; }
   @media print {
     @page { size: letter; margin: 0.5in; }
     body { background: #fff; }
     .app { display: block; }
     .side, #coord-picker, .actions, .summary { display: none !important; }
-    .stage { padding: 0; }
+    .stage { padding: 0; position: relative; }
     .plan-wrap { max-width: 100%; page-break-inside: avoid; }
     .plan-host path[data-room].is-booked { filter: none; }
+    #print-summary {
+      display: block; position: absolute; top: 60%; left: 0; transform: translateY(-50%); z-index: 10;
+      background: rgba(255,255,255,0.92); padding: 4px 6px; border-radius: 2px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    #print-summary .key__title { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #666; margin-bottom: 6px; }
+    #print-summary .key__grid { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+    #print-summary .key__item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #222; }
+    #print-summary .key__sw { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.08); flex-shrink: 0; }
   }
 </style>
 </head>
@@ -123,15 +150,12 @@
       <button class="btn" id="clear">Clear</button>
       <button class="btn" id="pdf">Download PDF</button>
     </div>
+    <div class="key" id="key"></div>
     <div id="checklist"></div>
   </aside>
 
   <section class="stage" id="plan-stage">
-    <div id="print-summary">
-      <div class="eyebrow">Fairmont Rooms — Your Booked Spaces</div>
-      <h1>Booked rooms</h1>
-      <ul id="print-list"></ul>
-    </div>
+    <div id="print-summary"></div>
     <div class="plan-wrap">
       <div class="plan-host" id="planHost" aria-label="Fairmont property — 3D floor plans"></div>
     </div>
@@ -208,7 +232,20 @@ const ROOMS = [
     overlay: [[421, 810], [419, 787], [453, 786], [463, 822], [402, 822], [402, 811]] },
 ];
 
-const booked = new Set();
+const CATEGORIES = [
+  { slug: 'general-session', name: 'General Session', color: '#e09663' },
+  { slug: 'office',          name: 'Office',          color: '#6b8caf' },
+  { slug: 'breakout',        name: 'Breakout',        color: '#5fa791' },
+  { slug: 'storage',         name: 'Storage',         color: '#9c9282' },
+  { slug: 'meal-room',       name: 'Meal Room',       color: '#d4a73a' },
+  { slug: 'dinner',          name: 'Dinner',          color: '#a8513d' },
+  { slug: 'reception',       name: 'Reception',       color: '#c97a8d' },
+  { slug: 'registration',    name: 'Registration',    color: '#7d9b5e' },
+  { slug: 'other',           name: 'Other',           color: '#8a6da8' },
+];
+const DEFAULT_CATEGORY = 'general-session';
+
+const booked = new Map(); // id -> category slug
 const roomPaths = {}; // id -> <path>
 const checklistEl = document.getElementById('checklist');
 const countEl = document.getElementById('count');
@@ -410,7 +447,11 @@ function applyBooked() {
   const svgEl = planHost.querySelector('svg');
   if (svgEl) {
     svgEl.querySelectorAll('path[data-room]').forEach(p => {
-      p.classList.toggle('is-booked', booked.has(p.dataset.room));
+      const id = p.dataset.room;
+      CATEGORIES.forEach(c => p.classList.remove(`cat-${c.slug}`));
+      const isBooked = booked.has(id);
+      p.classList.toggle('is-booked', isBooked);
+      if (isBooked) p.classList.add(`cat-${booked.get(id)}`);
     });
   }
   countEl.textContent = booked.size;
@@ -437,18 +478,48 @@ function debugLogRoom(roomId) {
   console.groupEnd();
 }
 
+function renderKey() {
+  document.getElementById('key').innerHTML = `
+    <div class="key__title">Key</div>
+    <div class="key__grid">
+      ${CATEGORIES.map(c => `
+        <div class="key__item">
+          <span class="key__sw" style="background:${c.color}"></span>${c.name}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderList() {
-  checklistEl.innerHTML = ROOMS.map((r) => `
-    <label class="checkrow ${booked.has(r.id) ? 'is-checked' : ''}" data-id="${r.id}">
-      <input type="checkbox" ${booked.has(r.id) ? 'checked' : ''}>
-      <span class="checkrow__box"></span>
-      <span class="checkrow__name">${r.name}</span>
-    </label>
-  `).join('');
+  checklistEl.innerHTML = ROOMS.map((r) => {
+    const isChecked = booked.has(r.id);
+    const cat = booked.get(r.id) || DEFAULT_CATEGORY;
+    const dropdown = isChecked ? `
+      <select class="checkrow__category" data-id="${r.id}">
+        ${CATEGORIES.map(c => `<option value="${c.slug}" ${c.slug === cat ? 'selected' : ''}>${c.name}</option>`).join('')}
+      </select>` : '';
+    return `
+      <label class="checkrow ${isChecked ? 'is-checked' : ''}" data-id="${r.id}">
+        <input type="checkbox" ${isChecked ? 'checked' : ''}>
+        <span class="checkrow__box"></span>
+        <span class="checkrow__name">${r.name}</span>
+        ${dropdown}
+      </label>
+    `;
+  }).join('');
   checklistEl.querySelectorAll('.checkrow').forEach((el) => {
     el.addEventListener('click', (e) => {
+      if (e.target.tagName === 'SELECT') return;
       e.preventDefault();
       toggle(el.dataset.id);
+    });
+  });
+  checklistEl.querySelectorAll('.checkrow__category').forEach((sel) => {
+    sel.addEventListener('click', (e) => e.stopPropagation());
+    sel.addEventListener('change', (e) => {
+      e.stopPropagation();
+      setCategory(sel.dataset.id, sel.value);
     });
   });
   countEl.textContent = booked.size;
@@ -456,13 +527,19 @@ function renderList() {
 
 function toggle(id) {
   if (booked.has(id)) booked.delete(id);
-  else booked.add(id);
+  else booked.set(id, DEFAULT_CATEGORY);
   renderList();
   applyBooked();
 }
 
+function setCategory(id, slug) {
+  if (!booked.has(id)) return;
+  booked.set(id, slug);
+  applyBooked();
+}
+
 document.getElementById('all').addEventListener('click', () => {
-  ROOMS.forEach((r) => booked.add(r.id));
+  ROOMS.forEach((r) => { if (!booked.has(r.id)) booked.set(r.id, DEFAULT_CATEGORY); });
   renderList(); applyBooked();
 });
 document.getElementById('clear').addEventListener('click', () => {
@@ -470,14 +547,21 @@ document.getElementById('clear').addEventListener('click', () => {
   renderList(); applyBooked();
 });
 document.getElementById('pdf').addEventListener('click', () => {
-  const list = document.getElementById('print-list');
-  const items = ROOMS.filter(r => booked.has(r.id));
-  list.innerHTML = items.length
-    ? items.map(r => `<li>${r.name}</li>`).join('')
-    : '<li><em>No rooms selected</em></li>';
+  const usedSlugs = new Set(booked.values());
+  const used = CATEGORIES.filter(c => usedSlugs.has(c.slug));
+  document.getElementById('print-summary').innerHTML = used.length ? `
+    <div class="key__title">Key</div>
+    <div class="key__grid">
+      ${used.map(c => `
+        <div class="key__item">
+          <span class="key__sw" style="background:${c.color}"></span>${c.name}
+        </div>
+      `).join('')}
+    </div>` : '';
   window.print();
 });
 
+renderKey();
 renderList();
 
 // ---- Coordinate picker ----
