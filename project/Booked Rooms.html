@@ -161,7 +161,7 @@
 // matching cream-filled path in the floor-plan SVG. The path itself is what
 // gets recolored, so highlights always fill exactly inside the black lines.
 const ROOMS = [
-  { id: 'crown-room',     name: 'The Crown Room',          x: 200, y: 90  },
+  { id: 'crown-room',     name: 'Crown Room',              x: 200, y: 90  },
   { id: 'state-room',     name: 'State Room',              x: 446, y: 79  },
   { id: 'international',  name: 'International Room',      x: 450, y: 90  },
   { id: 'far-east',       name: 'Far East Room',           x: 476, y: 111 },
@@ -210,7 +210,12 @@ const ROOMS = [
     overlay: [[171, 368], [244, 368], [248, 349], [178, 348]] },
   { id: 'terrace-room',   name: 'Terrace Room',            x: 287, y: 605 },
   { id: 'vanderbilt',     name: 'Vanderbilt Room',         x: 368, y: 599 },
-  { id: 'grand-ballroom', name: 'Grand Ballroom',          x: 314, y: 762 },
+  { id: 'oval-room',      name: 'Oval Room',
+    overlay: [[373, 450], [370, 435], [320, 434], [320, 448]] },
+  { id: 'grand-ballroom', name: 'Grand Ballroom',
+    overlay: [[227, 793], [399, 794], [389, 733], [240, 732]] },
+  { id: 'grand-ballroom-lounge', name: 'Grand Ballroom Lounge',
+    overlay: [[421, 810], [419, 787], [453, 786], [463, 822], [402, 822], [402, 811]] },
 ];
 
 const booked = new Set();
@@ -349,11 +354,57 @@ fetch('uploads/3D Floorplans.svg').then(r => r.text()).then(text => {
     }
   });
 
-  // Uppercase map labels that ship in mixed case.
+  // Targeted label fixes: drop "THE" from "THE CROWN ROOM", drop the duplicate
+  // "OFFICE" tspan from "TERRACE OFFICES OFFICE".
   svgEl.querySelectorAll('tspan').forEach(ts => {
     const t = ts.textContent.trim();
-    if (t === 'terrace room') ts.textContent = 'TERRACE ROOM';
-    else if (t === 'Arcade LEVEL') ts.textContent = 'ARCADE LEVEL';
+    if (t === 'THE CROWN ROOM') ts.textContent = 'CROWN ROOM';
+    else if (t === 'OFFICE') ts.style.display = 'none';
+  });
+
+  // Center the Vanderbilt label inside its room square (x:366-409, y:590-601).
+  svgEl.querySelectorAll('text').forEach(t => {
+    const tspans = t.querySelectorAll('tspan');
+    if (tspans.length === 2 &&
+        tspans[0].textContent.trim().toLowerCase() === 'vanderbilt' &&
+        tspans[1].textContent.trim().toLowerCase() === 'room') {
+      tspans[0].setAttribute('x', '370');
+      tspans[0].setAttribute('y', '-271');
+      tspans[1].setAttribute('x', '380');
+      tspans[1].setAttribute('y', '-265');
+    }
+  });
+
+  // Center the Tonga Restaurant label inside its overlay polygon
+  // (x:222-362, y:533-573 → center ~292, 553).
+  svgEl.querySelectorAll('tspan').forEach(ts => {
+    if (ts.textContent.trim().toUpperCase() === 'TONGA RESTAURANT') {
+      ts.setAttribute('x', '268');
+      ts.setAttribute('y', '-309');
+    }
+  });
+
+  // Fix "ENTRANCE VESTIBULE" — the source SVG splits it into 10 tspans with
+  // erratic x-offsets, producing visible gaps. Replace with a single tspan.
+  svgEl.querySelectorAll('text').forEach(t => {
+    const flat = t.textContent.replace(/\s+/g, '');
+    if (flat === 'ENTRANCEVESTIBULE') {
+      const first = t.querySelector('tspan');
+      const x = first.getAttribute('x');
+      const y = first.getAttribute('y');
+      while (t.firstChild) t.removeChild(t.firstChild);
+      const ns = 'http://www.w3.org/2000/svg';
+      const ts = document.createElementNS(ns, 'tspan');
+      ts.setAttribute('x', x);
+      ts.setAttribute('y', y);
+      ts.textContent = 'ENTRANCE VESTIBULE';
+      t.appendChild(ts);
+    }
+  });
+
+  // Final pass: uppercase every remaining map label.
+  svgEl.querySelectorAll('tspan').forEach(ts => {
+    ts.textContent = ts.textContent.toUpperCase();
   });
 
   applyBooked();
