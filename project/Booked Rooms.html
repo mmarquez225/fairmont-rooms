@@ -145,7 +145,7 @@
     <div class="plan-wrap">
       <div class="plan-host" id="planHost" aria-label="Fairmont property — 3D floor plans"></div>
     </div>
-    <div id="coord-picker">
+    <div id="coord-picker" style="display: none">
       <label>
         <input type="checkbox" id="picker-toggle">
         Coordinate picker
@@ -384,22 +384,27 @@ fetch('uploads/3D Floorplans.svg').then(r => r.text()).then(text => {
     }
   });
 
-  // Fix "ENTRANCE VESTIBULE" — the source SVG splits it into 10 tspans with
-  // erratic x-offsets, producing visible gaps. Replace with a single tspan.
+  // Fix labels the source SVG splits into many tspans with erratic x-offsets
+  // (visible gaps inside the word). Replace with a single tspan.
+  const BROKEN_LABELS = {
+    'ENTRANCEVESTIBULE': 'ENTRANCE VESTIBULE',
+    'SACRAMENTOSTREET':  'SACRAMENTO STREET',
+    'CALIFORNIASTREET':  'CALIFORNIA STREET',
+  };
   svgEl.querySelectorAll('text').forEach(t => {
     const flat = t.textContent.replace(/\s+/g, '');
-    if (flat === 'ENTRANCEVESTIBULE') {
-      const first = t.querySelector('tspan');
-      const x = first.getAttribute('x');
-      const y = first.getAttribute('y');
-      while (t.firstChild) t.removeChild(t.firstChild);
-      const ns = 'http://www.w3.org/2000/svg';
-      const ts = document.createElementNS(ns, 'tspan');
-      ts.setAttribute('x', x);
-      ts.setAttribute('y', y);
-      ts.textContent = 'ENTRANCE VESTIBULE';
-      t.appendChild(ts);
-    }
+    const fixed = BROKEN_LABELS[flat];
+    if (!fixed) return;
+    const first = t.querySelector('tspan');
+    const x = first.getAttribute('x');
+    const y = first.getAttribute('y');
+    while (t.firstChild) t.removeChild(t.firstChild);
+    const ns = 'http://www.w3.org/2000/svg';
+    const ts = document.createElementNS(ns, 'tspan');
+    ts.setAttribute('x', x);
+    ts.setAttribute('y', y);
+    ts.textContent = fixed;
+    t.appendChild(ts);
   });
 
   // Final pass: uppercase every remaining map label.
