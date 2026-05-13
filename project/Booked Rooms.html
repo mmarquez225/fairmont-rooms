@@ -186,7 +186,7 @@ const ROOMS = [
   // Tonga uses an overlay polygon because its visual area is part of a giant
   // compound cream path that also covers Diplomat Club, the corridor, etc.
   // Trace the room's corners with the coord picker and replace the placeholder.
-  { id: 'tonga',          name: 'Tonga Restaurant',
+  { id: 'tonga',          name: 'Tonga Room',
     overlay: [[361, 533], [362, 573], [222, 572], [236, 533]] },
   { id: 'laurel-court',   name: 'Laurel Court',
     overlay: [
@@ -375,12 +375,13 @@ fetch('uploads/3D Floorplans.svg').then(r => r.text()).then(text => {
     }
   });
 
-  // Center the Tonga Restaurant label inside its overlay polygon
-  // (x:222-362, y:533-573 → center ~292, 553).
+  // Rename "TONGA RESTAURANT" → "TONGA ROOM" and center it inside its
+  // overlay polygon (x:222-362, y:533-573 → center ~292, 553).
   svgEl.querySelectorAll('tspan').forEach(ts => {
     if (ts.textContent.trim().toUpperCase() === 'TONGA RESTAURANT') {
-      ts.setAttribute('x', '268');
-      ts.setAttribute('y', '-309');
+      ts.textContent = 'TONGA ROOM';
+      ts.setAttribute('x', '279');
+      ts.setAttribute('y', '-310');
     }
   });
 
